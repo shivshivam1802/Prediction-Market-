@@ -1,0 +1,174 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MarketCategory {
+  CRYPTO
+  POLITICS
+  SPORTS
+  AI
+  BUSINESS
+  TECHNOLOGY
+  ENTERTAINMENT
+  FINANCE
+  ELECTIONS
+  WORLD_NEWS
+}
+
+enum MarketType {
+  YES_NO
+  MULTIPLE_CHOICE
+  PRICE_PREDICTION
+  TIME_BASED
+  CUSTOM
+}
+
+enum MarketStatus {
+  ACTIVE
+  SUSPENDED
+  RESOLVED
+  DISPUTED
+}
+
+model User {
+  id              String         @id @default(uuid())
+  walletAddress   String         @unique
+  ensName         String?
+  username        String?        @unique
+  avatarUrl       String?
+  referralCode    String         @unique
+  referredBy      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  positions       Position[]
+  trades          Trade[]
+  comments        Comment[]
+  likes           CommentLike[]
+  notifications   Notification[]
+  referrals       User[]         @relation("UserReferrals")
+  referrer        User?          @relation("UserReferrals", fields: [referredBy], references: [walletAddress])
+  watchlist       Market[]       @relation("Watchlist")
+}
+
+model Market {
+  id               String         @id @default(uuid())
+  contractAddress  String         @unique
+  title            String
+  description      String
+  category         MarketCategory
+  type             MarketType
+  status           MarketStatus   @default(ACTIVE)
+  bannerUrl        String?
+  rules            String
+  endDate          DateTime
+  oracleSource     String
+  tags             String[]
+  resolutionMethod String
+  resolutionValue  String?
+  resolvedAt       DateTime?
+  creatorAddress   String
+  
+  // Financial metrics synced from chain
+  totalVolume      Decimal        @default(0) @db.Decimal(20, 6)
+  openInterest     Decimal        @default(0) @db.Decimal(20, 6)
+  tvl              Decimal        @default(0) @db.Decimal(20, 6)
+  
+  // Relations
+  outcomes         Outcome[]
+  trades           Trade[]
+  positions        Position[]
+  comments         Comment[]
+  watchlistedBy    User[]         @relation("Watchlist")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Outcome {
+  id               String         @id @default(uuid())
+  marketId         String
+  market           Market         @relation(fields: [marketId], references: [id])
+  name             String         // e.g., "YES", "NO"
+  price            Decimal        @db.Decimal(10, 4) // Current price in USD / Collateral (0.0000 - 1.0000)
+  totalShares      Decimal        @default(0) @db.Decimal(20, 6)
+  
+  positions        Position[]
+  trades           Trade[]
+}
+
+model Position {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  marketId         String
+  market           Market         @relation(fields: [marketId], references: [id])
+  outcomeId        String
+  outcome          Outcome        @relation(fields: [outcomeId], references: [id])
+  sharesOwned      Decimal        @db.Decimal(20, 6)
+  averageBuyPrice  Decimal        @db.Decimal(10, 4)
+  unrealizedPnl    Decimal        @default(0) @db.Decimal(20, 6)
+  realizedPnl      Decimal        @default(0) @db.Decimal(20, 6)
+  updatedAt        DateTime       @updatedAt
+  
+  @@unique([userId, outcomeId])
+}
+
+model Trade {
+  id               String         @id @default(uuid())
+  txHash           String         @unique
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  marketId         String
+  market           Market         @relation(fields: [marketId], references: [id])
+  outcomeId        String
+  outcome          Outcome        @relation(fields: [outcomeId], references: [id])
+  type             String         // "BUY" or "SELL"
+  amount           Decimal        @db.Decimal(20, 6) // Collateral spent
+  shares           Decimal        @db.Decimal(20, 6) // Shares bought/sold
+  pricePaid        Decimal        @db.Decimal(10, 4) // Price per share
+  feePaid          Decimal        @db.Decimal(20, 6)
+  timestamp        DateTime       @default(now())
+}
+
+model Comment {
+  id               String         @id @default(uuid())
+  marketId         String
+  market           Market         @relation(fields: [marketId], references: [id])
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  content          String
+  parentId         String?
+  parent           Comment?       @relation("CommentReplies", fields: [parentId], references: [id])
+  replies          Comment[]      @relation("CommentReplies")
+  likes            CommentLike[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model CommentLike {
+  id               String         @id @default(uuid())
+  commentId        String
+  comment          Comment        @relation(fields: [commentId], references: [id])
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  
+  @@unique([commentId, userId])
+}
+
+model Notification {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  title            String
+  message          String
+  read             Boolean        @default(false)
+  type             String         // "MARKET_ENDING", "RESOLUTION", "TRADE_FILLED", "REWARD", "TRENDING"
+  link             String?
+  createdAt        DateTime       @default(now())
+}
