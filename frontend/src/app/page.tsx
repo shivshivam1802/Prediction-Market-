@@ -14,7 +14,7 @@ export default function HomePage() {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-4">
           <a
-            href="/api/docs"
+            href="http://localhost:3001/api/docs"
             target="_blank"
             className="px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-hover transition duration-200"
           >
