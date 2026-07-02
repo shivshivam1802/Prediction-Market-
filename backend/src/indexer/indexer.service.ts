@@ -79,8 +79,13 @@ export class IndexerService implements OnModuleInit {
           outcomes.push(outcomeInfo.name);
         }
 
-        const creator = await marketContract.runner; // dummy creator address or default
-        await this.registerMarketInDb(marketId, marketAddress, title, outcomes, Number(endDate), creator || '0x0000000000000000000000000000000000000000');
+        let creatorAddress = '0x0000000000000000000000000000000000000000';
+        try {
+          if (marketContract.runner && 'getAddress' in marketContract.runner) {
+            creatorAddress = await (marketContract.runner as any).getAddress();
+          }
+        } catch {}
+        await this.registerMarketInDb(marketId, marketAddress, title, outcomes, Number(endDate), creatorAddress);
         
         // If it's active, keep listening to trade/resolution events
         if (!isResolved) {
