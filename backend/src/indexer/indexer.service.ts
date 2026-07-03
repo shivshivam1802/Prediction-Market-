@@ -124,7 +124,7 @@ export class IndexerService implements OnModuleInit {
             oracleSource: 'Chainlink Oracle Feed / Admin Resolution',
             resolutionMethod: 'Oracle contract verification',
             creatorAddress: creatorAddress,
-            tags: ['decentralized', 'predict'],
+            tags: 'decentralized,predict',
             outcomes: {
               create: outcomes.map((name) => ({
                 name: name,

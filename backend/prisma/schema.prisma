@@ -1,38 +1,10 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
-}
-
-enum MarketCategory {
-  CRYPTO
-  POLITICS
-  SPORTS
-  AI
-  BUSINESS
-  TECHNOLOGY
-  ENTERTAINMENT
-  FINANCE
-  ELECTIONS
-  WORLD_NEWS
-}
-
-enum MarketType {
-  YES_NO
-  MULTIPLE_CHOICE
-  PRICE_PREDICTION
-  TIME_BASED
-  CUSTOM
-}
-
-enum MarketStatus {
-  ACTIVE
-  SUSPENDED
-  RESOLVED
-  DISPUTED
 }
 
 model User {
@@ -62,23 +34,23 @@ model Market {
   contractAddress  String         @unique
   title            String
   description      String
-  category         MarketCategory
-  type             MarketType
-  status           MarketStatus   @default(ACTIVE)
+  category         String         // e.g. "CRYPTO", "POLITICS", etc. (stored as String for SQLite compatibility)
+  type             String         // e.g. "YES_NO", etc.
+  status           String         @default("ACTIVE") // e.g. "ACTIVE", "RESOLVED"
   bannerUrl        String?
   rules            String
   endDate          DateTime
   oracleSource     String
-  tags             String[]
+  tags             String         // Stored as comma-separated tags for SQLite compatibility
   resolutionMethod String
   resolutionValue  String?
   resolvedAt       DateTime?
   creatorAddress   String
   
-  // Financial metrics synced from chain
-  totalVolume      Decimal        @default(0) @db.Decimal(20, 6)
-  openInterest     Decimal        @default(0) @db.Decimal(20, 6)
-  tvl              Decimal        @default(0) @db.Decimal(20, 6)
+  // Financial metrics
+  totalVolume      Decimal        @default(0)
+  openInterest     Decimal        @default(0)
+  tvl              Decimal        @default(0)
   
   // Relations
   outcomes         Outcome[]
@@ -95,8 +67,8 @@ model Outcome {
   marketId         String
   market           Market         @relation(fields: [marketId], references: [id])
   name             String         // e.g., "YES", "NO"
-  price            Decimal        @db.Decimal(10, 4) // Current price in USD / Collateral (0.0000 - 1.0000)
-  totalShares      Decimal        @default(0) @db.Decimal(20, 6)
+  price            Decimal        // Current price in USD / Collateral (0.0000 - 1.0000)
+  totalShares      Decimal        @default(0)
   
   positions        Position[]
   trades           Trade[]
@@ -110,10 +82,10 @@ model Position {
   market           Market         @relation(fields: [marketId], references: [id])
   outcomeId        String
   outcome          Outcome        @relation(fields: [outcomeId], references: [id])
-  sharesOwned      Decimal        @db.Decimal(20, 6)
-  averageBuyPrice  Decimal        @db.Decimal(10, 4)
-  unrealizedPnl    Decimal        @default(0) @db.Decimal(20, 6)
-  realizedPnl      Decimal        @default(0) @db.Decimal(20, 6)
+  sharesOwned      Decimal
+  averageBuyPrice  Decimal
+  unrealizedPnl    Decimal        @default(0)
+  realizedPnl      Decimal        @default(0)
   updatedAt        DateTime       @updatedAt
   
   @@unique([userId, outcomeId])
@@ -129,10 +101,10 @@ model Trade {
   outcomeId        String
   outcome          Outcome        @relation(fields: [outcomeId], references: [id])
   type             String         // "BUY" or "SELL"
-  amount           Decimal        @db.Decimal(20, 6) // Collateral spent
-  shares           Decimal        @db.Decimal(20, 6) // Shares bought/sold
-  pricePaid        Decimal        @db.Decimal(10, 4) // Price per share
-  feePaid          Decimal        @db.Decimal(20, 6)
+  amount           Decimal        // Collateral spent
+  shares           Decimal        // Shares bought/sold
+  pricePaid        Decimal        // Price per share
+  feePaid          Decimal
   timestamp        DateTime       @default(now())
 }
 
